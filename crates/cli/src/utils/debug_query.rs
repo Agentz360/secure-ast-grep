@@ -1,6 +1,6 @@
 use crate::lang::SgLang;
 use ansi_term::Style;
-use ast_grep_core::{matcher::PatternNode, meta_var::MetaVariable, MatchStrictness, Pattern};
+use ast_grep_core::{matcher::DumpPattern, Pattern};
 use ast_grep_language::LanguageExt;
 use clap::ValueEnum;
 use tree_sitter as ts;
@@ -28,9 +28,10 @@ impl DebugFormat {
       DebugFormat::Pattern => {
         let mut ret = String::new();
         let fmt = DumpFmt::named(colored);
-        let pattern_node =
-          dump_pattern_impl(&pattern.node, &pattern.strictness, &get_mapping(lang))
-            .expect("pattern must have root node");
+        let Some(pattern_node) = pattern.dump(&get_mapping(lang)) else {
+          eprintln!("Pattern has no root node");
+          return;
+        };
         if dump_pattern(&pattern_node, &fmt, 0, &mut ret).is_ok() {
           eprintln!("Debug Pattern:\n{ret}");
         } else {
@@ -64,89 +65,6 @@ impl DebugFormat {
   }
 }
 
-struct DumpPattern {
-  is_meta_var: bool,
-  kind: Option<Cow<'static, str>>,
-  text: String,
-  children: Vec<DumpPattern>,
-}
-
-fn dump_pattern_impl(
-  pattern: &PatternNode,
-  strictness: &MatchStrictness,
-  to_kind_str: &impl Fn(u16) -> Option<Cow<'static, str>>,
-) -> Option<DumpPattern> {
-  match pattern {
-    PatternNode::MetaVar { meta_var } => {
-      let meta_var = match meta_var {
-        MetaVariable::Capture(name, _) => format!("${name}"),
-        MetaVariable::MultiCapture(name) => format!("$$${name}"),
-        MetaVariable::Multiple => "$$$".to_string(),
-        MetaVariable::Dropped(_) => "$_".to_string(),
-      };
-      Some(DumpPattern {
-        is_meta_var: true,
-        kind: Some("MetaVar".into()),
-        text: meta_var,
-        children: vec![],
-      })
-    }
-    PatternNode::Terminal {
-      text,
-      kind_id,
-      is_named,
-    } => {
-      if !*is_named {
-        if matches!(
-          strictness,
-          MatchStrictness::Cst | MatchStrictness::Smart | MatchStrictness::Template
-        ) {
-          return Some(DumpPattern {
-            is_meta_var: false,
-            kind: None,
-            text: text.to_string(),
-            children: vec![],
-          });
-        }
-        return None;
-      }
-      let kind = if matches!(strictness, MatchStrictness::Template) {
-        None
-      } else {
-        Some(to_kind_str(*kind_id).unwrap_or("UNKNOWN".into()))
-      };
-      let text = if matches!(strictness, MatchStrictness::Signature) {
-        ""
-      } else {
-        text
-      };
-      Some(DumpPattern {
-        is_meta_var: false,
-        kind,
-        text: text.to_string(),
-        children: vec![],
-      })
-    }
-    PatternNode::Internal { kind_id, children } => {
-      let kind = if matches!(strictness, MatchStrictness::Template) {
-        Cow::Borrowed("(node)")
-      } else {
-        to_kind_str(*kind_id).unwrap_or_else(|| "UNKNOWN".into())
-      };
-      let children = children
-        .iter()
-        .filter_map(|n| dump_pattern_impl(n, strictness, to_kind_str))
-        .collect();
-      Some(DumpPattern {
-        is_meta_var: false,
-        kind: Some(kind),
-        text: String::new(),
-        children,
-      })
-    }
-  }
-}
-
 fn dump_pattern(
   pattern: &DumpPattern,
   style: &DumpFmt,
@@ -156,7 +74,7 @@ fn dump_pattern(
   let indent_str = "  ".repeat(indent);
   if pattern.is_meta_var {
     let kind = style.field_style.paint("MetaVar");
-    let text = style.kind_style.paint(&pattern.text);
+    let text = style.kind_style.paint(&*pattern.text);
     writeln!(ret, "{indent_str}{kind} {text}")?;
   } else if let Some(kind) = &pattern.kind {
     let kind = style.kind_style.paint(kind.as_ref());
@@ -356,7 +274,8 @@ translation_unit (0,0)-(0,9)
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &get_mapping(lang))
+    let pattern_node = pattern
+      .dump(&get_mapping(lang))
       .expect("pattern must have root node");
     dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
@@ -371,7 +290,8 @@ translation_unit (0,0)-(0,9)
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &get_mapping(lang))
+    let pattern_node = pattern
+      .dump(&get_mapping(lang))
       .expect("pattern must have root node");
     dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
@@ -391,7 +311,8 @@ translation_unit (0,0)-(0,9)
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &get_mapping(lang))
+    let pattern_node = pattern
+      .dump(&get_mapping(lang))
       .expect("pattern must have root node");
     dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
@@ -415,7 +336,8 @@ translation_unit (0,0)-(0,9)
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &get_mapping(lang))
+    let pattern_node = pattern
+      .dump(&get_mapping(lang))
       .expect("pattern must have root node");
     dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
