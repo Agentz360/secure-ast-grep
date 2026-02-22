@@ -19,8 +19,8 @@ crate-type = ["cdylib", "rlib"]
 default = []
 
 [dependencies]
-ast-grep-core = { path = "../core", version = "0.40.5", default-features = false }
-ast-grep-config = { path = "../config", version = "0.40.5", default-features = false }
+ast-grep-core = { path = "../core", default-features = false }
+ast-grep-config = { path = "../config", default-features = false }
 
 wasm-bindgen = { version = "=0.2.111", features = ["serde-serialize"] }
 wasm-bindgen-futures = "=0.4.61"
