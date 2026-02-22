@@ -94,6 +94,7 @@ jobs:
           name: wasm-pkg
           path: crates/wasm/pkg
       - name: Publish
+        working-directory: ./crates/wasm/pkg
         run: |
           if git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$";
           then

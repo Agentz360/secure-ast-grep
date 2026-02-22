@@ -13,5 +13,13 @@ pkg.peerDependencies = {
   'web-tree-sitter': webTreeSitterVersion,
 }
 
+if (typeof pkg.repository === 'string') {
+  pkg.repository = { type: 'git', url: pkg.repository }
+}
+const repoUrl = pkg.repository.url
+if (!repoUrl.startsWith('git+')) {
+  pkg.repository.url = 'git+' + repoUrl + (repoUrl.endsWith('.git') ? '' : '.git')
+}
+
 writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
 console.log('Patched pkg/package.json with peerDependencies.')
