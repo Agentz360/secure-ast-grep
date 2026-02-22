@@ -5,8 +5,12 @@ import { readFileSync, writeFileSync } from 'fs'
 const pkgPath = new URL('../pkg/package.json', import.meta.url).pathname
 const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
 
+const rootPkgPath = new URL('../package.json', import.meta.url).pathname
+const rootPkg = JSON.parse(readFileSync(rootPkgPath, 'utf8'))
+const webTreeSitterVersion = rootPkg.peerDependencies['web-tree-sitter']
+
 pkg.peerDependencies = {
-  'web-tree-sitter': '^0.25.0',
+  'web-tree-sitter': webTreeSitterVersion,
 }
 
 writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
